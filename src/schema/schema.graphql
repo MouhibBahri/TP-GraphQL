@@ -1,3 +1,75 @@
-type Query {
-	hello: String!
+enum Role {
+  USER
+  ADMIN
 }
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  role: Role!
+  cvs: [Cv!]!
+}
+
+type Cv {
+  id: ID!
+  name: String!
+  age: Int!
+  job: String!
+  user: User!
+  skills: [Skill!]!
+}
+
+type Skill {
+  id: ID!
+  designation: String!
+  cvs: [Cv!]!
+}
+
+type Query {
+  users: [User!]!
+  user(id: ID!): User
+  cvs: [Cv!]!
+  cv(id: ID!): Cv
+  skills: [Skill!]!
+}
+
+
+input CreateCvInput {
+  name: String!
+  age: Int!
+  job: String!
+  userId: ID!          
+  skillIds: [ID!]!    
+}
+
+
+input UpdateCvInput {
+  name: String
+  age: Int
+  job: String
+  userId: ID
+  skillIds: [ID!]
+}
+
+type Mutation {
+  createCv(data: CreateCvInput!): Cv!
+  updateCv(id: ID!, data: UpdateCvInput!): Cv!
+  deleteCv(id: ID!): Boolean!      
+}
+
+enum CvEventType {
+  CREATED
+  UPDATED
+  DELETED
+}
+
+type CvEvent {
+  type: CvEventType!
+  cv: Cv!
+}
+
+type Subscription {
+  cvEvents: CvEvent!
+}
+
