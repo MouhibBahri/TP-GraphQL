@@ -1,11 +1,9 @@
 import { GraphQLContext } from '../context';
 
 export const Query = {
-  // SELECT * FROM users
   users: (_parent: unknown, _args: unknown, ctx: GraphQLContext) =>
     ctx.db.users,
 
-  // SELECT * FROM users WHERE id = $1
   user: (_parent: unknown, args: { id: string }, ctx: GraphQLContext) =>
     ctx.db.findUserById(args.id),
 

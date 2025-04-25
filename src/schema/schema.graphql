@@ -34,26 +34,16 @@ type Query {
   skills: [Skill!]!
 }
 
-# --------------------------------------------------
-# INPUTS pour créer ou modifier un CV
-# --------------------------------------------------
 
-"""
-Données requises pour créer un nouveau CV.
-"""
 input CreateCvInput {
   name: String!
   age: Int!
   job: String!
-  userId: ID!          # propriétaire du CV
-  skillIds: [ID!]!     # compétences à lier
+  userId: ID!          
+  skillIds: [ID!]!    
 }
 
-"""
-Champs autorisés lors de la mise à jour d’un CV.
-Tous les champs sont optionnels pour permettre
-une modification partielle (patch).
-"""
+
 input UpdateCvInput {
   name: String
   age: Int
@@ -62,18 +52,12 @@ input UpdateCvInput {
   skillIds: [ID!]
 }
 
-# --------------------------------------------------
-# Mutations exposées
-# --------------------------------------------------
 type Mutation {
   createCv(data: CreateCvInput!): Cv!
   updateCv(id: ID!, data: UpdateCvInput!): Cv!
-  deleteCv(id: ID!): Boolean!      # (facultatif)
+  deleteCv(id: ID!): Boolean!      
 }
 
-# --------------------------------------------------
-# Payload renvoyé sur le bus d'événements
-# --------------------------------------------------
 enum CvEventType {
   CREATED
   UPDATED
@@ -85,9 +69,6 @@ type CvEvent {
   cv: Cv!
 }
 
-# --------------------------------------------------
-# Subscription
-# --------------------------------------------------
 type Subscription {
   cvEvents: CvEvent!
 }

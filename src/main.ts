@@ -1,4 +1,3 @@
-// src/index.ts
 import { createSchema, createYoga } from 'graphql-yoga';
 import { createServer } from 'http';
 import path from 'path';
@@ -29,10 +28,10 @@ const schema = createSchema({
 
 const yoga = createYoga({
   schema,
-  context: () => ({ db }), // injection pour chaque requête
+  context: () => ({ db }), 
 });
 
 const server = createServer(yoga);
 server.listen(4000, () =>
-  console.info('🚀  http://localhost:4000/graphql'),
+  console.info('http://localhost:4000/graphql'),
 );
