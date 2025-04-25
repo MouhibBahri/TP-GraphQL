@@ -1,9 +1,7 @@
 import { GraphQLContext } from '../context';
-import { randomUUID } from 'crypto';
-import { pubsub } from '../pubsub';
 
 export const Mutation = {
-  createCv: (
+  createCv: async (
     _parent: unknown,
     args: { data: {
       name: string; age: number; job: string;
@@ -13,34 +11,49 @@ export const Mutation = {
   ) => {
     const { data } = args;
 
-    if (!ctx.db.findUserById(data.userId)) {
+    const user = await ctx.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+    if (!user) {
       throw new Error('User not found');
     }
-    data.skillIds.forEach((sid) => {
-      if (!ctx.db.findSkillById(sid)) {
-        throw new Error(`Skill ${sid} not found`);
+
+    for (const skillId of data.skillIds) {
+      const skill = await ctx.prisma.skill.findUnique({
+        where: { id: skillId },
+      });
+      if (!skill) {
+        throw new Error(`Skill ${skillId} not found`);
       }
+    }
+
+    const newCv = await ctx.prisma.cv.create({
+      data: {
+        name: data.name,
+        age: data.age,
+        job: data.job,
+        user: {
+          connect: { id: data.userId },
+        },
+        skills: {
+          connect: data.skillIds.map(id => ({ id })),
+        },
+      },
+      include: {
+        user: true,
+        skills: true,
+      },
     });
 
-    const newCv = {
-      id: randomUUID(),
-      name: data.name,
-      age: data.age,
-      job: data.job,
-      userId: data.userId,
-    };
-    ctx.db.cvs.push(newCv);
-
-    data.skillIds.forEach((sid) =>
-      ctx.db.cvSkill.push({ cvId: newCv.id, skillId: sid }),
-    );
-    pubsub.publish('CV_EVENTS', { type: 'CREATED', cv: newCv });
-
+    ctx.pubsub.publish('CV_EVENTS', {
+      type: 'CREATED',
+      cv: newCv
+    });
 
     return newCv;
   },
 
-  updateCv: (
+  updateCv: async (
     _p: unknown,
     args: { id: string; data: {
       name?: string; age?: number; job?: string;
@@ -48,53 +61,98 @@ export const Mutation = {
     }},
     ctx: GraphQLContext,
   ) => {
-    const cv = ctx.db.findCvById(args.id);
-    if (!cv) throw new Error('CV not found');
+    const { id, data } = args;
 
-    const { data } = args;
+    // Check if CV exists
+    const existingCv = await ctx.prisma.cv.findUnique({
+      where: { id },
+    });
+    if (!existingCv) {
+      throw new Error('CV not found');
+    }
 
-    if (data.name !== undefined) cv.name = data.name;
-    if (data.age  !== undefined) cv.age  = data.age;
-    if (data.job  !== undefined) cv.job  = data.job;
-
-    if (data.userId !== undefined) {
-      if (!ctx.db.findUserById(data.userId)) {
+    if (data.userId) {
+      const user = await ctx.prisma.user.findUnique({
+        where: { id: data.userId },
+      });
+      if (!user) {
         throw new Error('User not found');
       }
-      cv.userId = data.userId;
+    }
+
+    if (data.skillIds) {
+      for (const skillId of data.skillIds) {
+        const skill = await ctx.prisma.skill.findUnique({
+          where: { id: skillId },
+        });
+        if (!skill) {
+          throw new Error(`Skill ${skillId} not found`);
+        }
+      }
+    }
+
+    const updateData: any = {};
+
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.age !== undefined) updateData.age = data.age;
+    if (data.job !== undefined) updateData.job = data.job;
+
+    if (data.userId !== undefined) {
+      updateData.user = { connect: { id: data.userId } };
     }
 
     if (data.skillIds !== undefined) {
-      data.skillIds.forEach((sid) => {
-        if (!ctx.db.findSkillById(sid)) {
-          throw new Error(`Skill ${sid} not found`);
-        }
-      });
-      ctx.db.cvSkill = ctx.db.cvSkill.filter(
-        (cs) => cs.cvId !== cv.id,
-      );
-      data.skillIds.forEach((sid) =>
-        ctx.db.cvSkill.push({ cvId: cv.id, skillId: sid }),
-      );
+      updateData.skills = {
+        set: [],
+        connect: data.skillIds.map(id => ({ id })),
+      };
     }
-    pubsub.publish('CV_EVENTS', { type: 'UPDATED', cv });
 
-    return cv;
+    const updatedCv = await ctx.prisma.cv.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: true,
+        skills: true,
+      },
+    });
+
+    ctx.pubsub.publish('CV_EVENTS', {
+      type: 'UPDATED',
+      cv: updatedCv
+    });
+
+    return updatedCv;
   },
 
-  deleteCv: (
+  deleteCv: async (
     _p: unknown,
     args: { id: string },
     ctx: GraphQLContext,
   ) => {
-    const index = ctx.db.cvs.findIndex((c) => c.id === args.id);
-    if (index === -1) return false;
+    const { id } = args;
 
-    ctx.db.cvs.splice(index, 1);
-    ctx.db.cvSkill = ctx.db.cvSkill.filter(
-      (cs) => cs.cvId !== args.id,
-    );
-    pubsub.publish('CV_EVENTS', { type: 'DELETED', cv: { id: args.id, name: '', age: 0, job: '', userId: '' } });
+    const existingCv = await ctx.prisma.cv.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        skills: true,
+      },
+    });
+
+    if (!existingCv) {
+      return false;
+    }
+
+    await ctx.prisma.cv.delete({
+      where: { id },
+    });
+
+    ctx.pubsub.publish('CV_EVENTS', {
+      type: 'DELETED',
+      cv: existingCv
+    });
+
     return true;
   },
 };

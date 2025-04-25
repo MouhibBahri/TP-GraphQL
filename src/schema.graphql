@@ -34,15 +34,13 @@ type Query {
   skills: [Skill!]!
 }
 
-
 input CreateCvInput {
   name: String!
   age: Int!
   job: String!
-  userId: ID!          
-  skillIds: [ID!]!    
+  userId: ID!
+  skillIds: [ID!]!
 }
-
 
 input UpdateCvInput {
   name: String
@@ -55,7 +53,7 @@ input UpdateCvInput {
 type Mutation {
   createCv(data: CreateCvInput!): Cv!
   updateCv(id: ID!, data: UpdateCvInput!): Cv!
-  deleteCv(id: ID!): Boolean!      
+  deleteCv(id: ID!): Boolean!
 }
 
 enum CvEventType {
@@ -72,4 +70,3 @@ type CvEvent {
 type Subscription {
   cvEvents: CvEvent!
 }
-
